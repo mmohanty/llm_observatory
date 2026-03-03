@@ -10,6 +10,10 @@ Real-time observability dashboard for LLM traffic with:
 Backend: FastAPI + SSE (+ optional Kafka consumer)  
 Frontend: React + Vite
 
+## Production Docs
+
+- Trace Explorer configuration guide: [`docs/TRACE_EXPLORER_CONFIGURATION.md`](docs/TRACE_EXPLORER_CONFIGURATION.md)
+
 ## Architecture
 
 ```mermaid
@@ -68,6 +72,33 @@ Path: `/Users/manas/work/aiml/codex/observability/backend`
 - `GET /api/models/metrics`  
   Rolling model metrics + risk.
 
+### OpenTelemetry (production tracing)
+
+Backend now includes OpenTelemetry SDK + FastAPI instrumentation:
+- auto-instruments inbound HTTP requests
+- propagates trace context into worker threads for `config_read`
+- records thread exceptions on spans and in telemetry details
+
+Config (`backend/.env`):
+- `OTEL_ENABLED=true`
+- `OTEL_SERVICE_NAME=llm-observability-api`
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces` (optional)
+
+If OTLP endpoint is set, spans are exported using OTLP HTTP.
+
+### Non-blocking ingestion + durable history
+
+Telemetry ingestion is now queue-based:
+- request path publishes events with non-blocking enqueue (`publish_event`)
+- background dispatcher persists events to durable SQLite and updates SSE in-memory cache
+
+Durable history store:
+- SQLite path (configurable): `TELEMETRY_DB_PATH` (default `backend/data/telemetry_history.db`)
+- APIs (`/api/events/recent`, traces, summary, metrics) read from durable history
+
+Queue config:
+- `TELEMETRY_QUEUE_SIZE` (default `10000`)
+
 Current mock catalog (routable via `/api/router/infer`) includes families from:
 - OpenAI: `gpt-4.1`, `gpt-4o-mini`, `gpt-4.5`, `o3-mini`, `o4-mini`
 - Anthropic: `claude-sonnet`, `claude-opus`, `claude-haiku`
@@ -83,7 +114,7 @@ Current mock catalog (routable via `/api/router/infer`) includes families from:
 
 `/api/models/metrics` supports:
 - window: `window_seconds`
-- filters: `user_id`, `model_id`, `service`, `status`, `provider`, `tenant_id`, `time_from`, `time_to`
+- filters: `usecase_id`, `request_id`, `model_id`, `service`, `status`, `provider`, `tenant_id`, `time_from`, `time_to`
 - SLO caps: `latency_slo_ms`, `token_slo_tps`
 - health thresholds: `warm_threshold`, `degrading_threshold`, `critical_threshold`
 
@@ -121,7 +152,7 @@ Path: `/Users/manas/work/aiml/codex/observability/frontend`
 
 ### Important behavior
 
-Recent Requests filters are propagated to model metrics API calls, so dashboard health/risk reflects the currently filtered scope (model/user/service/status/time window).
+Recent Requests filters are propagated to model metrics API calls, so dashboard health/risk reflects the currently filtered scope (model/usecase/service/status/time window).
 
 ## Run
 
@@ -156,7 +187,7 @@ curl -X POST "http://localhost:8000/api/router/infer" \
   -H "content-type: application/json" \
   -H "model_id: gpt-4.1" \
   -d '{
-    "user_id": "alice",
+    "usecase_id": "claims-pricing",
     "tenant_id": "tenant-a",
     "prompt": "Refactor this Python function",
     "use_oracle": false

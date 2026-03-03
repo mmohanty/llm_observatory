@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import FlowCanvas from "./components/FlowCanvas";
 import GalaxyCanvas from "./components/GalaxyCanvas";
 import RecentRequestsGrid from "./components/RecentRequestsGrid";
+import TraceExplorer from "./components/TraceExplorer";
 import { useEventStream } from "./hooks/useEventStream";
 import { useModelCatalog } from "./hooks/useModelCatalog";
 import { useModelMetrics } from "./hooks/useModelMetrics";
 
 export default function App() {
+  const [screenMode, setScreenMode] = useState("observatory");
   const [topModelCount, setTopModelCount] = useState(20);
   const [viewMode, setViewMode] = useState("galaxy");
   const [windowSeconds, setWindowSeconds] = useState(60);
@@ -28,10 +30,11 @@ export default function App() {
   });
   const [gridFilters, setGridFilters] = useState({
     query: "",
+    requestId: "",
     status: "",
     service: "",
     model: "",
-    user: "",
+    usecaseId: "",
     timeMode: "all",
     timeFrom: "",
     timeTo: "",
@@ -47,7 +50,8 @@ export default function App() {
   const { models: modelCatalog } = useModelCatalog();
   const metricsOptions = useMemo(
     () => ({
-      user: gridFilters.user,
+      usecaseId: gridFilters.usecaseId,
+      requestId: gridFilters.requestId,
       model: gridFilters.model,
       service: gridFilters.service,
       status: gridFilters.status,
@@ -303,14 +307,34 @@ export default function App() {
       <header>
         <div className="header-row">
           <h1>LLM Traffic Observatory</h1>
-          <div className="live-pill">
-            <span className="status-dot" data-connected={connected} />
-            <span>{connected ? "Live" : "Reconnecting"}</span>
+          <div className="header-actions">
+            <div className="view-switch">
+              <button
+                type="button"
+                className={`density-btn ${screenMode === "observatory" ? "active" : ""}`}
+                onClick={() => setScreenMode("observatory")}
+              >
+                Observatory
+              </button>
+              <button
+                type="button"
+                className={`density-btn ${screenMode === "trace" ? "active" : ""}`}
+                onClick={() => setScreenMode("trace")}
+              >
+                Trace Explorer
+              </button>
+            </div>
+            <div className="live-pill">
+              <span className="status-dot" data-connected={connected} />
+              <span>{connected ? "Live" : "Reconnecting"}</span>
+            </div>
           </div>
         </div>
         <p>Real-time ingress, transform, and egress telemetry</p>
       </header>
 
+      {screenMode === "trace" ? <TraceExplorer /> : (
+        <>
       <section className="panel ux-controls">
         <div className="control-group">
           <span className="control-label">Mode</span>
@@ -590,6 +614,8 @@ export default function App() {
       ) : null}
 
       <RecentRequestsGrid events={events} onFiltersChange={setGridFilters} />
+        </>
+      )}
     </main>
   );
 }

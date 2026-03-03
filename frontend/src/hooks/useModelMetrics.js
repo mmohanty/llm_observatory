@@ -9,7 +9,8 @@ export function useModelMetrics(windowSeconds = 60, options = {}) {
   useEffect(() => {
     let cancelled = false;
     const {
-      user,
+      usecaseId,
+      requestId,
       model,
       service,
       status,
@@ -24,7 +25,8 @@ export function useModelMetrics(windowSeconds = 60, options = {}) {
     const load = () => {
       const params = new URLSearchParams();
       params.set("window_seconds", String(windowSeconds));
-      if (user) params.set("user_id", user);
+      if (usecaseId) params.set("usecase_id", usecaseId);
+      if (requestId) params.set("request_id", requestId);
       if (model) params.set("model_id", model);
       if (service) params.set("service", service);
       if (status) params.set("status", status);

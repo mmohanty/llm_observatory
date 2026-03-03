@@ -3,9 +3,14 @@ export default function FilterBar({ filters, onChange, modelOptions, serviceOpti
     <section className="panel filter-panel">
       <div className="filter-bar">
       <input
-        placeholder="user_id"
-        value={filters.user_id}
-        onChange={(e) => onChange("user_id", e.target.value)}
+        placeholder="usecase_id"
+        value={filters.usecase_id || ""}
+        onChange={(e) => onChange("usecase_id", e.target.value)}
+      />
+      <input
+        placeholder="request_id"
+        value={filters.request_id || ""}
+        onChange={(e) => onChange("request_id", e.target.value)}
       />
       <select value={filters.model_id} onChange={(e) => onChange("model_id", e.target.value)}>
         <option value="">all models</option>

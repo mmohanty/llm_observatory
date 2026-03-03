@@ -5,3 +5,7 @@ pydantic-settings>=2.7,<3.0
 python-dotenv>=1.0,<2.0
 aiokafka>=0.12,<1.0; python_version < "3.14"
 kafka-python>=2.0,<3.0
+opentelemetry-api>=1.28,<2.0
+opentelemetry-sdk>=1.28,<2.0
+opentelemetry-exporter-otlp>=1.28,<2.0
+opentelemetry-instrumentation-fastapi>=0.49b0,<1.0

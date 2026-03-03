@@ -8,10 +8,11 @@ function norm(v) {
 
 export default function RecentRequestsGrid({ events, onFiltersChange }) {
   const [query, setQuery] = useState("");
+  const [requestId, setRequestId] = useState("");
   const [status, setStatus] = useState("");
   const [service, setService] = useState("");
   const [model, setModel] = useState("");
-  const [user, setUser] = useState("");
+  const [usecaseId, setUsecaseId] = useState("");
   const [timeMode, setTimeMode] = useState("all");
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
@@ -20,7 +21,10 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
 
   const serviceOptions = useMemo(() => Array.from(new Set(events.map((e) => e.service))).sort(), [events]);
   const modelOptions = useMemo(() => Array.from(new Set(events.map((e) => e.model_id))).sort(), [events]);
-  const userOptions = useMemo(() => Array.from(new Set(events.map((e) => e.user_id))).sort(), [events]);
+  const usecaseOptions = useMemo(
+    () => Array.from(new Set(events.map((e) => e.usecase_id || e.tenant_id || "default"))).sort(),
+    [events]
+  );
 
   const rows = useMemo(() => {
     const q = norm(query.trim());
@@ -32,7 +36,9 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
       if (status && e.status !== status) return false;
       if (service && e.service !== service) return false;
       if (model && e.model_id !== model) return false;
-      if (user && e.user_id !== user) return false;
+      const eventUsecase = e.usecase_id || e.tenant_id || "default";
+      if (usecaseId && eventUsecase !== usecaseId) return false;
+      if (requestId && e.request_id !== requestId) return false;
       if (timeMode === "after" && fromMs !== null && ts < fromMs) return false;
       if (timeMode === "before" && toMs !== null && ts > toMs) return false;
       if (timeMode === "range") {
@@ -42,7 +48,7 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
       if (!q) return true;
       const blob = [
         e.request_id,
-        e.user_id,
+        eventUsecase,
         e.model_id,
         e.service,
         e.status,
@@ -55,7 +61,7 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
         .join(" ");
       return blob.includes(q);
     });
-  }, [events, query, status, service, model, user, timeMode, timeFrom, timeTo]);
+  }, [events, query, requestId, status, service, model, usecaseId, timeMode, timeFrom, timeTo]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -80,15 +86,16 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
     if (!onFiltersChange) return;
     onFiltersChange({
       query,
+      requestId,
       status,
       service,
       model,
-      user,
+      usecaseId,
       timeMode,
       timeFrom,
       timeTo,
     });
-  }, [onFiltersChange, query, status, service, model, user, timeMode, timeFrom, timeTo]);
+  }, [onFiltersChange, query, requestId, status, service, model, usecaseId, timeMode, timeFrom, timeTo]);
 
   return (
     <section className="panel table-panel">
@@ -110,12 +117,21 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
             setQuery(e.target.value);
             setPage(1);
           }}
-          placeholder="Search request id, user, model, service, provider..."
+          placeholder="Search request id, usecase_id, model, service, provider..."
         />
 
-        <select value={user} onChange={(e) => { setUser(e.target.value); setPage(1); }}>
-          <option value="">all users</option>
-          {userOptions.map((u) => <option key={u} value={u}>{u}</option>)}
+        <input
+          value={requestId}
+          onChange={(e) => {
+            setRequestId(e.target.value.trim());
+            setPage(1);
+          }}
+          placeholder="request_id"
+        />
+
+        <select value={usecaseId} onChange={(e) => { setUsecaseId(e.target.value); setPage(1); }}>
+          <option value="">all usecases</option>
+          {usecaseOptions.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
 
         <select value={model} onChange={(e) => { setModel(e.target.value); setPage(1); }}>
@@ -162,7 +178,8 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
           <thead>
             <tr>
               <th>time</th>
-              <th>user</th>
+              <th>request_id</th>
+              <th>usecase_id</th>
               <th>model</th>
               <th>service</th>
               <th>status</th>
@@ -179,7 +196,8 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
             {paged.map((e) => (
               <tr key={`${e.request_id}-${e.service}-${e.timestamp}`}>
                 <td>{new Date(e.timestamp).toLocaleTimeString()}</td>
-                <td>{e.user_id}</td>
+                <td title={e.request_id}>{e.request_id}</td>
+                <td>{e.usecase_id || e.tenant_id || "default"}</td>
                 <td>{e.model_id}</td>
                 <td>{e.service}</td>
                 <td className={e.status === "failure" ? "bad-text" : "good-text"}>{e.status}</td>
@@ -194,7 +212,7 @@ export default function RecentRequestsGrid({ events, onFiltersChange }) {
             ))}
             {paged.length === 0 ? (
               <tr>
-                <td colSpan="12" className="empty-row">No requests match current filters.</td>
+                <td colSpan="13" className="empty-row">No requests match current filters.</td>
               </tr>
             ) : null}
           </tbody>
